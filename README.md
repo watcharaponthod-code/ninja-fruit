@@ -4,9 +4,9 @@ A real-time interactive game where players slash fruits using body movements cap
 
 ---
 
-## 🎮 Demo Video
+## 🎮 Demo
 
-https://github.com/watcharaponthod-code/Ninja_fruit/raw/main/demo/demo-gameplay.mp4
+![Demo Gameplay](demo/demo-gameplay.gif)
 
 ---
 
