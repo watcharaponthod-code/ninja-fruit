@@ -2,82 +2,117 @@
 
 A real-time interactive game where players "pick" or "slash" fruits using their body movements, captured via webcam and processed using **YOLOv8 Pose Detection**.
 
+## 🎮 Demo Video
+
+<video src="demo/demo-gameplay.mp4" controls width="100%">
+  <p>Your browser doesn't support HTML video. <a href="demo/demo-gameplay.mp4">Download the video</a></p>
+</video>
+
+---
+
 ## 🚀 Overview
+
 This project combines Computer Vision and Web Technologies to create an immersive gaming experience. It uses a Python backend for pose estimation and a Next.js frontend for the game interface (or integrated Python-based game logic).
+
+---
+
+## 🧠 ML Data Flow Architecture
+
+The diagram below shows how data flows through the AI pipeline — from the **Kafka** message stream, through processing buffers and ML components, to final detection outputs.
+
+```mermaid
+flowchart TD
+    kafka([kafka]):::green
+
+    input_buffer([input_buffer]):::yellow
+    rule_buffer([rule_buffer]):::yellow
+    rule_processor([rule_processor]):::yellow
+    forecaster_buffer([forecaster_buffer]):::yellow
+    forecaster([forecaster]):::yellow
+    estimator([estimator]):::yellow
+
+    publisher_pred([publisher_pred]):::blue
+    publisher_mse([publisher_mse]):::blue
+    forecaster_detector([forecaster_detector]):::blue
+    limit_detector([limit_detector]):::blue
+    rule_detector([rule_detector]):::blue
+
+    kafka --> input_buffer
+    input_buffer --> rule_buffer
+    rule_buffer --> rule_processor
+    rule_processor --> forecaster_buffer
+    forecaster_buffer --> forecaster
+    forecaster --> estimator
+
+    estimator --> publisher_pred
+    estimator --> publisher_mse
+    forecaster --> forecaster_detector
+    rule_processor --> limit_detector
+    rule_buffer --> rule_detector
+
+    classDef green  fill:#6dbf67,stroke:#4a9e45,color:#fff
+    classDef yellow fill:#f5c842,stroke:#d4a820,color:#333
+    classDef blue   fill:#5b7fd4,stroke:#3a5db0,color:#fff
+```
+
+### 🔄 Data Flow Explanation
+
+| Component | Type | Role |
+|---|---|---|
+| **kafka** | Source (🟢) | Real-time data stream input from sensors/events |
+| **input_buffer** | Buffer (🟡) | Receives raw Kafka events and queues them |
+| **rule_buffer** | Buffer (🟡) | Buffers data for rule-based evaluation |
+| **rule_processor** | Processor (🟡) | Applies business rules and filters to data |
+| **forecaster_buffer** | Buffer (🟡) | Prepares time-series window for forecasting |
+| **forecaster** | ML Model (🟡) | Predicts future values using trained model |
+| **estimator** | ML Model (🟡) | Estimates state / refines predictions |
+| **publisher_pred** | Output (🔵) | Publishes model predictions downstream |
+| **publisher_mse** | Output (🔵) | Publishes Mean Squared Error metrics |
+| **forecaster_detector** | Detector (🔵) | Detects anomalies in forecasted data |
+| **limit_detector** | Detector (🔵) | Triggers alerts when values exceed limits |
+| **rule_detector** | Detector (🔵) | Fires when rule conditions are violated |
+
+---
 
 ## 🏗️ System Architecture
 
 ```mermaid
-graph TD
-    subgraph Input
-        A[Webcam Feed] --> B[Frame Preprocessing]
+flowchart LR
+    subgraph Frontend["🌐 Frontend (Next.js)"]
+        UI[Game UI]
+        Canvas[Canvas Renderer]
     end
 
-    subgraph AI_Engine
-        B --> C{YOLOv8 Pose Model}
-        C --> D[Keypoints Detection]
-        D --> E[Hand/Wrist Tracking]
+    subgraph Backend["⚙️ Backend (Python)"]
+        Webcam[Webcam Capture]
+        YOLO[YOLOv8 Pose]
+        Logic[Game Logic]
     end
 
-    subgraph Game_Logic
-        E --> F[Collision Detection]
-        G[Fruit Spawner] --> F
-        F --> H{Is Fruit Hit?}
-        H -- Yes --> I[Update Score & Particle Effects]
-        H -- No --> J[Fruit Falls/Expires]
+    subgraph AI["🤖 AI Pipeline"]
+        Pose[Pose Keypoints]
+        Gesture[Gesture Classifier]
     end
 
-    subgraph UI_Display
-        I --> K[Next.js / Python Canvas UI]
-        J --> K
-        K --> L[Real-time Feedback]
-    end
+    Webcam --> YOLO --> Pose --> Gesture --> Logic
+    Logic --> UI
+    Logic --> Canvas
 ```
 
-## 🛠️ Tech Stack
-- **AI/ML:** Ultralytics YOLOv8 (Pose Estimation)
-- **Backend/Logic:** Python, OpenCV
-- **Frontend:** Next.js (React), TypeScript, Tailwind CSS
-- **3D Assets:** FBX Models (Sword, Apple)
-
-## 📂 Project Structure
-- `main.py`: Entry point for the Python application.
-- `camera.py`: Handles webcam stream and frame capture.
-- `game.py`: Core game mechanics and scoring.
-- `settings.py`: Configuration for AI models and game parameters.
-- `web/`: Next.js web application for the browser-based interface.
-- `model/`: 3D assets and pre-trained YOLOv8 weights.
-
-## ⚙️ Installation & Setup
-
-1. **Clone the repository:**
-   ```bash
-   git clone https://github.com/watcharaponthod-code/Ninja_fruit.git
-   cd Ninja_fruit
-   ```
-
-2. **Install Python dependencies:**
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-3. **Setup Web Interface (Optional):**
-   ```bash
-   cd web
-   npm install
-   npm run dev
-   ```
-
-4. **Run the game:**
-   ```bash
-   python main.py
-   ```
-
-## 🎮 How to Play
-1. Stand in front of your webcam.
-2. The AI will track your wrists/hands.
-3. Move your hands to "touch" the fruits appearing on the screen.
-4. Score points for every fruit you pick!
-
 ---
-Developed with ❤️ by [Watcharapon](https://github.com/watcharaponthod-code)
+
+## 🛠️ Tech Stack
+
+| Layer | Technology |
+|---|---|
+| Pose Detection | YOLOv8 Pose (`yolov8n-pose.pt`) |
+| Backend | Python (`game.py`, `camera.py`, `main.py`) |
+| Web Frontend | Next.js (`/web`) |
+| Configuration | `settings.py` |
+
+## 📦 Installation
+
+```bash
+pip install -r requirements.txt
+python main.py
+```
