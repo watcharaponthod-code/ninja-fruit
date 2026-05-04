@@ -1,0 +1,11 @@
+body {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  background-color: #0f172a;
+  overflow: hidden;
+}
+
+* {
+  box-sizing: inherit;
+}
