@@ -1,102 +1,127 @@
 # 🍎 Ninja Fruit - AI Pose-Based Fruit Picking Game
 
-A real-time interactive game where players "pick" or "slash" fruits using their body movements, captured via webcam and processed using **YOLOv8 Pose Detection**.
+A real-time interactive game where players slash fruits using body movements captured by webcam, processed with **YOLOv8 Pose Detection**.
+
+---
 
 ## 🎮 Demo Video
 
-<video src="demo/demo-gameplay.mp4" controls width="100%">
-  <p>Your browser doesn't support HTML video. <a href="demo/demo-gameplay.mp4">Download the video</a></p>
-</video>
+https://github.com/watcharaponthod-code/Ninja_fruit/raw/main/demo/demo-gameplay.mp4
 
 ---
 
-## 🚀 Overview
+## 🧠 ML Data Flow — AI Pipeline
 
-This project combines Computer Vision and Web Technologies to create an immersive gaming experience. It uses a Python backend for pose estimation and a Next.js frontend for the game interface (or integrated Python-based game logic).
-
----
-
-## 🧠 ML Data Flow Architecture
-
-The diagram below shows how data flows through the AI pipeline — from the **Kafka** message stream, through processing buffers and ML components, to final detection outputs.
+> แสดงการไหลของข้อมูลตั้งแต่กล้องจนถึงการแสดงผลบนจอ
 
 ```mermaid
 flowchart TD
-    kafka([kafka]):::green
+    Webcam([📷 Webcam]):::green
 
-    input_buffer([input_buffer]):::yellow
-    rule_buffer([rule_buffer]):::yellow
-    rule_processor([rule_processor]):::yellow
-    forecaster_buffer([forecaster_buffer]):::yellow
-    forecaster([forecaster]):::yellow
-    estimator([estimator]):::yellow
+    subgraph cam["📁 camera.py — TrackerCamera"]
+        direction TB
+        Capture[OpenCV\nVideoCapture]
+        YOLO[YOLOv8 Pose Model\nyolov8n-pose.pt]
+        Assign[Player Assigner\nleft / center / right]
+    end
 
-    publisher_pred([publisher_pred]):::blue
-    publisher_mse([publisher_mse]):::blue
-    forecaster_detector([forecaster_detector]):::blue
-    limit_detector([limit_detector]):::blue
-    rule_detector([rule_detector]):::blue
+    subgraph gm["📁 game.py — GameManager"]
+        direction TB
+        HandHist[Hand History\nTracking × 6 frames]
+        SlashDet[Slash Detection\nmovement > 15 px]
+        Collision[Fruit / Bomb\nCollision Check]
+        Score[Score & Combo\nSystem]
+        Particles[Particle Effects]
+    end
 
-    kafka --> input_buffer
-    input_buffer --> rule_buffer
-    rule_buffer --> rule_processor
-    rule_processor --> forecaster_buffer
-    forecaster_buffer --> forecaster
-    forecaster --> estimator
+    subgraph ml["📁 main.py — Game Loop @ 30 FPS"]
+        direction TB
+        Timer[Game Timer\n60 seconds]
+        Renderer[Pygame Renderer\nblit + draw]
+    end
 
-    estimator --> publisher_pred
-    estimator --> publisher_mse
-    forecaster --> forecaster_detector
-    rule_processor --> limit_detector
-    rule_buffer --> rule_detector
+    Display([🖥️ Display Output]):::blue
 
-    classDef green  fill:#6dbf67,stroke:#4a9e45,color:#fff
-    classDef yellow fill:#f5c842,stroke:#d4a820,color:#333
-    classDef blue   fill:#5b7fd4,stroke:#3a5db0,color:#fff
+    Webcam --> Capture
+    Capture -->|BGR frame| YOLO
+    YOLO -->|17 keypoints per person| Assign
+    Assign -->|player_keypoints\ndict| HandHist
+
+    HandHist --> SlashDet
+    SlashDet -->|fruit.slash\np1 → p2| Collision
+    Collision -->|fruit cut| Score
+    Collision -->|visual| Particles
+
+    Score --> Renderer
+    Particles --> Renderer
+    Timer --> Renderer
+    Renderer --> Display
+
+    classDef green fill:#6dbf67,stroke:#4a9e45,color:#fff
+    classDef blue  fill:#5b7fd4,stroke:#3a5db0,color:#fff
 ```
 
-### 🔄 Data Flow Explanation
+### 🔍 Component Breakdown
 
-| Component | Type | Role |
+| Component | File | Role |
 |---|---|---|
-| **kafka** | Source (🟢) | Real-time data stream input from sensors/events |
-| **input_buffer** | Buffer (🟡) | Receives raw Kafka events and queues them |
-| **rule_buffer** | Buffer (🟡) | Buffers data for rule-based evaluation |
-| **rule_processor** | Processor (🟡) | Applies business rules and filters to data |
-| **forecaster_buffer** | Buffer (🟡) | Prepares time-series window for forecasting |
-| **forecaster** | ML Model (🟡) | Predicts future values using trained model |
-| **estimator** | ML Model (🟡) | Estimates state / refines predictions |
-| **publisher_pred** | Output (🔵) | Publishes model predictions downstream |
-| **publisher_mse** | Output (🔵) | Publishes Mean Squared Error metrics |
-| **forecaster_detector** | Detector (🔵) | Detects anomalies in forecasted data |
-| **limit_detector** | Detector (🔵) | Triggers alerts when values exceed limits |
-| **rule_detector** | Detector (🔵) | Fires when rule conditions are violated |
+| **Webcam** | — | Physical camera input |
+| **OpenCV VideoCapture** | `camera.py` | Captures & mirrors each frame |
+| **YOLOv8 Pose Model** | `camera.py` | Detects people → 17 COCO keypoints per person |
+| **Player Assigner** | `camera.py` | Maps track IDs → Player 1/2/3 by X-position |
+| **Hand History** | `game.py` | Stores last 6 wrist positions (keypoints 9 & 10) |
+| **Slash Detection** | `game.py` | Triggers when hand moves > 15 px per frame |
+| **Fruit/Bomb Collision** | `game.py` | Line-circle distance check between hand path & fruit |
+| **Score & Combo** | `game.py` | +1 pt / fruit, combo bonus every 3 cuts, -5 for bomb |
+| **Particle Effects** | `game.py` | Juice VFX on cut / explosion |
+| **Game Timer** | `main.py` | 60-second countdown |
+| **Pygame Renderer** | `main.py` | Composites frame + fruits + scores + timer |
 
 ---
 
-## 🏗️ System Architecture
+## 🏗️ Class Architecture
 
 ```mermaid
-flowchart LR
-    subgraph Frontend["🌐 Frontend (Next.js)"]
-        UI[Game UI]
-        Canvas[Canvas Renderer]
-    end
+classDiagram
+    class TrackerCamera {
+        +YOLO model
+        +VideoCapture cap
+        +dict track_to_player
+        +update() rgb_frame, player_keypoints
+        +assign_players(track_ids, x_centers)
+        +release()
+    }
 
-    subgraph Backend["⚙️ Backend (Python)"]
-        Webcam[Webcam Capture]
-        YOLO[YOLOv8 Pose]
-        Logic[Game Logic]
-    end
+    class GameManager {
+        +dict scores
+        +list fruits
+        +list particles
+        +dict hand_history
+        +dict combo_count
+        +spawn_fruit()
+        +update(player_keypoints)
+        +draw(surface, player_keypoints)
+    }
 
-    subgraph AI["🤖 AI Pipeline"]
-        Pose[Pose Keypoints]
-        Gesture[Gesture Classifier]
-    end
+    class Fruit {
+        +bool is_bomb
+        +float x, y
+        +float speed_x, speed_y
+        +bool is_cut
+        +update()
+        +draw(surface)
+        +slash(p1, p2) bool
+    }
 
-    Webcam --> YOLO --> Pose --> Gesture --> Logic
-    Logic --> UI
-    Logic --> Canvas
+    class Particle {
+        +float x, y, vx, vy
+        +int life
+        +update()
+        +draw(surface)
+    }
+
+    GameManager "1" --> "many" Fruit
+    GameManager "1" --> "many" Particle
 ```
 
 ---
@@ -105,10 +130,11 @@ flowchart LR
 
 | Layer | Technology |
 |---|---|
-| Pose Detection | YOLOv8 Pose (`yolov8n-pose.pt`) |
-| Backend | Python (`game.py`, `camera.py`, `main.py`) |
-| Web Frontend | Next.js (`/web`) |
-| Configuration | `settings.py` |
+| Pose Detection | YOLOv8 Nano (`yolov8n-pose.pt`) |
+| Computer Vision | OpenCV (`cv2`) |
+| Game Engine | Pygame |
+| Tracking | YOLO built-in multi-object tracking (`persist=True`) |
+| Language | Python 3 |
 
 ## 📦 Installation
 
