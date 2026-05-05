@@ -8,9 +8,9 @@ A real-time interactive game where players slash fruits using body movements cap
 
 ![Demo Gameplay](demo/demo-gameplay.gif)
 
-![Demo Gameplay 2](demo/demo-gameplay-2.gif)
+![Demo Gameplay 2](demo/demo-gameplay-2.gif) ![Demo Gameplay 3](demo/demo-gameplay-3.gif)
 
-![Demo Gameplay 3](demo/demo-gameplay-3.gif)
+
 
 ---
 
