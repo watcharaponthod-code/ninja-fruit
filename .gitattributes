@@ -1,0 +1,8 @@
+# keep 3D assets + demo GIFs + model weights out of language stats
+model/**              linguist-vendored
+web/public/model/**   linguist-vendored
+demo/**               linguist-vendored
+*.ma                  linguist-vendored
+*.fbx                 linguist-vendored
+*.obj                 linguist-vendored
+*.pt                  binary linguist-vendored
